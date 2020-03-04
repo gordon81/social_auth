@@ -2,7 +2,9 @@
 namespace MV\SocialAuth\Controller;
 
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
+use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
 
 /***************************************************************
  *
@@ -32,9 +34,10 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 /**
  * AuthController
  */
-class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
+class AuthController extends ActionController
 {
     protected $extConfig = array();
+    protected $context;
 
     /**
      * Initialize action
@@ -44,6 +47,7 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
     public function initializeAction()
     {
         $this->extConfig = GeneralUtility::makeInstance(ExtensionConfiguration::class)->get('social_auth');
+        $this->context = GeneralUtility::makeInstance(Context::class);
         if (!$this->extConfig['users']['storagePid'] || !$this->extConfig['users']['defaultGroup']) {
             throw new \Exception('You must provide a pid for storage user and a default usergroup on Extension manager', 1473863197);
         }
@@ -73,18 +77,21 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
      */
     public function connectAction()
     {
+
         if (!$this->request->getArgument('provider')) {
             throw new \Exception('Provider is required', 1325691094);
         }
         $redirectionUri = null;
         //redirect if login
-        if ($GLOBALS['TSFE']->loginUser && is_array($GLOBALS['TSFE']->fe_user->user)) {
+        if (
+        $this->context->getPropertyFromAspect('frontend.user', 'isLoggedIn')
+        ){
             $redirectionUri = $this->request->getArgument('redirect');
             //sanitize url with logintype=logout
             $redirectionUri = preg_replace('/(&?logintype=logout)/i', '', $redirectionUri);
         }
         if (null === $redirectionUri) {
-            $this->uriBuilder->setTargetPageUid((int) $GLOBALS['TSFE']->id);
+            $this->uriBuilder->setTargetPageUid((int)$this->getPropertyFromAspect('frontend.user','id'));
             $redirectionUri = $this->uriBuilder->build();
         }
         $this->redirectToUri($redirectionUri);
