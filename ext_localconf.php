@@ -2,6 +2,7 @@
 if (!defined('TYPO3_MODE')) {
     die('Access denied.');
 }
+$_EXTKEY = "social_auth";
 $boot = function ($_EXTKEY) {
     $composerAutoloadFile = \TYPO3\CMS\Core\Utility\ExtensionManagementUtility::extPath($_EXTKEY) . 'Resources/Private/Librairies/autoload.php';
     if (file_exists($composerAutoloadFile)) {
