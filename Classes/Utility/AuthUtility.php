@@ -190,6 +190,6 @@ class AuthUtility
      */
     public function logout()
     {
-        $this->hybridAuth->logoutAllProviders();
+        $this->hybridAuth->disconnectAllAdapters();
     }
 }
