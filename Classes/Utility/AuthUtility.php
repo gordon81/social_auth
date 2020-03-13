@@ -118,7 +118,7 @@ class AuthUtility
         /* @var $logManager \TYPO3\CMS\Core\Log\LogManager */
         $logManager = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Log\LogManager::class);
         $this->logger = $logManager->getLogger(__CLASS__);
-        $this->hybridAuth = new Hybridauth\Hybridauth($this->config);
+        $this->hybridAuth = new \Hybridauth\Hybridauth($this->config);
     }
 
     /**
