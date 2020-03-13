@@ -105,12 +105,12 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
             $this->redirectToUri($redirectionUri);
         }
 
-        if (isset($_REQUEST['hauth_start']) || isset($_REQUEST['hauth_done'])) {
+    //    if (isset($_REQUEST['hauth_start']) || isset($_REQUEST['hauth_done'])) {
             try {
                 \Hybrid_Endpoint::process();
             } catch (\Hybrid_Exception $e) {
                 $this->throwStatus(403);
             }
-        }
+     //   }
     }
 }
