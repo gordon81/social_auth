@@ -65,7 +65,7 @@ class AuthUtility
     {
         $this->extConfig = GeneralUtility::makeInstance(ExtensionConfiguration::class)->get('social_auth');
         $this->config = array(
-            'base_url' => GeneralUtility::getIndpEnv('TYPO3_SITE_URL') . '?type=1316773682',
+            'callback' => GeneralUtility::getIndpEnv('TYPO3_SITE_URL') . '?type=1316773682',
             'providers' => array(
                 'Facebook' => array(
                     'enabled' =>  $this->extConfig['providers']['facebook']['enabled'],
@@ -118,7 +118,7 @@ class AuthUtility
         /* @var $logManager \TYPO3\CMS\Core\Log\LogManager */
         $logManager = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Log\LogManager::class);
         $this->logger = $logManager->getLogger(__CLASS__);
-        $this->hybridAuth = new \Hybrid_Auth($this->config);
+        $this->hybridAuth = new Hybridauth\Hybridauth($this->config);
     }
 
     /**
