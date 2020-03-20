@@ -6,7 +6,8 @@ use Hybridauth\Storage\Session;
 use MV\SocialAuth\Utility\AuthUtility;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
 /***************************************************************
  *
  *  Copyright notice
@@ -35,14 +36,13 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 /**
  * AuthController
  */
-class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
+class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController implements LoggerAwareInterface
 {
     protected $extConfig = array();
     protected $storage;
-    /**
-     * @var \TYPO3\CMS\Core\Log\Logger
-     */
-    protected $logger;
+
+    use LoggerAwareTrait;
+
     /**
      * Initialize action
      * @return void
@@ -50,9 +50,7 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
      */
     public function initializeAction()
     {
-        /* @var $logManager \TYPO3\CMS\Core\Log\LogManager */
-        $logManager = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Log\LogManager::class);
-        $this->logger = $logManager->getLogger(__CLASS__);
+
         $this->extConfig = GeneralUtility::makeInstance(ExtensionConfiguration::class)->get('social_auth');
         if (!$this->extConfig['users']['storagePid'] || !$this->extConfig['users']['defaultGroup']) {
             throw new \Exception('You must provide a pid for storage user and a default usergroup on Extension manager', 1473863197);
