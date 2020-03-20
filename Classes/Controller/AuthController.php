@@ -72,7 +72,6 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController 
         }
         $this->view->assign('providers', $providers);
     }
-
     /**
      * Connect action
      * @return void
@@ -95,6 +94,17 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController 
             $this->uriBuilder->setTargetPageUid((int) $GLOBALS['TSFE']->id);
             $redirectionUri = $this->uriBuilder->build();
         }
+        if ($provider = $this->storage->get('provider')) {
+            try {
+                /** @var AuthUtility $authUtility */
+                $authUtility = $this->objectManager->get(\MV\SocialAuth\Utility\AuthUtility::class);
+                [$user, $token] = $authUtility->authenticate($provider);
+                $this->logger->debug('User and Token',[$user,$token]);
+
+            } catch (Exception $e) {
+                var_dump($e);
+            }
+        }
         $this->logger->debug('redirectionUri',[$redirectionUri]);
         $this->redirectToUri($redirectionUri);
     }
@@ -115,15 +125,18 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController 
         }
         if ($provider = $this->storage->get('provider')) {
 
-            try {
-                /** @var AuthUtility $authUtility */
-                $authUtility = $this->objectManager->get(\MV\SocialAuth\Utility\AuthUtility::class);
-                [$user, $token] = $authUtility->authenticate($provider);
-                $this->logger->debug('User and Token',[$user,$token]);
+            //    try {
+            //        /** @var AuthUtility $authUtility */
+            //        $authUtility = $this->objectManager->get(\MV\SocialAuth\Utility\AuthUtility::class);
+            //        [$user, $token] = $authUtility->authenticate($provider);
+            //        $this->logger->debug('User and Token',[$user,$token]);
 
-            } catch (Exception $e) {
-
-            }
+            //    } catch (Exception $e) {
+            //        var_dump($e);
+            //    }
+            $this->uriBuilder->setTargetPageUid(2);
+            $redirectionUri = $this->uriBuilder->build();
+            $this->redirectToUri($redirectionUri);
         }
     }
 }
