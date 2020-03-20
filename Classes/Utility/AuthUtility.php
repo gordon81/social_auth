@@ -1,6 +1,7 @@
 <?php
 namespace MV\SocialAuth\Utility;
 
+use Hybridauth\Hybridauth;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\HttpUtility;
@@ -49,7 +50,7 @@ class AuthUtility
     protected $extConfig = [];
 
     /**
-     * \Hybrid_Auth $hybridAuth
+     * @var Hybridauth $hybridAuth
      */
     protected $hybridAuth;
 
@@ -124,15 +125,17 @@ class AuthUtility
     /**
      * @param string $provider
      *
-     *  @return \Hybrid_User_Profile|FALSE
+     *  @return Hybridauth\User\Profile |FALSE
      */
     public function authenticate($provider)
     {
         $socialUser = null;
         try {
             $service = $this->hybridAuth->authenticate($provider);
+            $accessToken = $service->getAccessToken();
             $socialUser = $service->getUserProfile();
         } catch (\Exception $exception) {
+            $this->logger->debug('Exception',[$exception->getCode(),$exception->getMessage(),$exception->getTrace()]);
             switch ($exception->getCode()) {
                 case 0:
                     $error = 'Unspecified error.';
@@ -167,10 +170,10 @@ class AuthUtility
             );
             HttpUtility::redirect(GeneralUtility::getIndpEnv('TYPO3_SITE_URL') . '?tx_socialauth_pi1[error]='.$exception->getCode());
         }
-        if (null !== $socialUser) {
-            return $socialUser;
+        if (null !== $socialUser && null !== $accessToken) {
+            return [$socialUser , $accessToken];
         } else {
-            return false;
+            return [false,false];
         }
     }
 

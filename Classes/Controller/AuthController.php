@@ -1,6 +1,9 @@
 <?php
 namespace MV\SocialAuth\Controller;
 
+use Hybridauth\Exception\Exception;
+use Hybridauth\Storage\Session;
+use MV\SocialAuth\Utility\AuthUtility;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -35,7 +38,11 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
 {
     protected $extConfig = array();
-
+    protected $storage;
+    /**
+     * @var \TYPO3\CMS\Core\Log\Logger
+     */
+    protected $logger;
     /**
      * Initialize action
      * @return void
@@ -43,10 +50,14 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
      */
     public function initializeAction()
     {
+        /* @var $logManager \TYPO3\CMS\Core\Log\LogManager */
+        $logManager = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Log\LogManager::class);
+        $this->logger = $logManager->getLogger(__CLASS__);
         $this->extConfig = GeneralUtility::makeInstance(ExtensionConfiguration::class)->get('social_auth');
         if (!$this->extConfig['users']['storagePid'] || !$this->extConfig['users']['defaultGroup']) {
             throw new \Exception('You must provide a pid for storage user and a default usergroup on Extension manager', 1473863197);
         }
+        $this->storage = new Session();
     }
 
     /**
@@ -67,9 +78,7 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
     /**
      * Connect action
      * @return void
-     * @throws \TYPO3\CMS\Extbase\Mvc\Exception\NoSuchArgumentException
-     * @throws \TYPO3\CMS\Extbase\Mvc\Exception\StopActionException
-     * @throws \TYPO3\CMS\Extbase\Mvc\Exception\UnsupportedRequestTypeException
+     * @throws \Exception
      */
     public function connectAction()
     {
@@ -77,6 +86,7 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
             throw new \Exception('Provider is required', 1325691094);
         }
         $redirectionUri = null;
+        $this->storage->set('provider',$this->request->getArgument('provider'));
         //redirect if login
         if ($GLOBALS['TSFE']->loginUser && is_array($GLOBALS['TSFE']->fe_user->user)) {
             $redirectionUri = $this->request->getArgument('redirect');
@@ -87,6 +97,7 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
             $this->uriBuilder->setTargetPageUid((int) $GLOBALS['TSFE']->id);
             $redirectionUri = $this->uriBuilder->build();
         }
+        $this->logger->debug('redirectionUri',[$redirectionUri]);
         $this->redirectToUri($redirectionUri);
     }
 
@@ -104,13 +115,17 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
             $redirectionUri = $this->uriBuilder->build();
             $this->redirectToUri($redirectionUri);
         }
+        if ($provider = $this->storage->get('provider')) {
 
-    //    if (isset($_REQUEST['hauth_start']) || isset($_REQUEST['hauth_done'])) {
             try {
-                \Hybrid_Endpoint::process();
-            } catch (\Hybrid_Exception $e) {
-                $this->throwStatus(403);
+                /** @var AuthUtility $authUtility */
+                $authUtility = $this->objectManager->get(\MV\SocialAuth\Utility\AuthUtility::class);
+                [$user, $token] = $authUtility->authenticate($provider);
+                $this->logger->debug('User and Token',[$user,$token]);
+
+            } catch (Exception $e) {
+
             }
-     //   }
+        }
     }
 }
