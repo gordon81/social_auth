@@ -66,7 +66,7 @@ class AuthUtility
     {
         $this->extConfig = GeneralUtility::makeInstance(ExtensionConfiguration::class)->get('social_auth');
         $this->config = array(
-            'callback' => GeneralUtility::getIndpEnv('TYPO3_SITE_URL') . '?type=1316773682',
+            'callback' => GeneralUtility::getIndpEnv('TYPO3_SITE_URL') . '?type=1316773682&logintype=login',
             'providers' => array(
                 'Facebook' => array(
                     'enabled' =>  $this->extConfig['providers']['facebook']['enabled'],
