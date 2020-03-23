@@ -6,6 +6,7 @@ use Hybridauth\Storage\Session;
 use MV\SocialAuth\Utility\AuthUtility;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Core\Context\Context;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 /***************************************************************
@@ -39,7 +40,8 @@ use Psr\Log\LoggerAwareTrait;
 class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController implements LoggerAwareInterface
 {
     protected $extConfig = array();
-    protected $storage;
+
+    private $context;
 
     use LoggerAwareTrait;
 
@@ -52,10 +54,11 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController 
     {
 
         $this->extConfig = GeneralUtility::makeInstance(ExtensionConfiguration::class)->get('social_auth');
+        $this->context = GeneralUtility::makeInstance(Context::class);
         if (!$this->extConfig['users']['storagePid'] || !$this->extConfig['users']['defaultGroup']) {
             throw new \Exception('You must provide a pid for storage user and a default usergroup on Extension manager', 1473863197);
         }
-        $this->storage = new Session();
+
     }
 
     /**
@@ -83,9 +86,12 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController 
             throw new \Exception('Provider is required', 1325691094);
         }
         $redirectionUri = null;
-        $this->storage->set('provider',$this->request->getArgument('provider'));
+        $provider = $this->request->getArgument('provider');
+        $GLOBALS['TSFE']->fe_user->setKey("ses","provider",$provider);
         //redirect if login
-        if ($GLOBALS['TSFE']->loginUser && is_array($GLOBALS['TSFE']->fe_user->user)) {
+        if (
+        $this->context->getPropertyFromAspect('frontend.user', 'isLoggedIn')
+        ){
             $redirectionUri = $this->request->getArgument('redirect');
             //sanitize url with logintype=logout
             $redirectionUri = preg_replace('/(&?logintype=logout)/i', '', $redirectionUri);
@@ -94,17 +100,7 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController 
             $this->uriBuilder->setTargetPageUid((int) $GLOBALS['TSFE']->id);
             $redirectionUri = $this->uriBuilder->build();
         }
-        if ($provider = $this->storage->get('provider')) {
-            try {
-                /** @var AuthUtility $authUtility */
-                $authUtility = $this->objectManager->get(\MV\SocialAuth\Utility\AuthUtility::class);
-                [$user, $token] = $authUtility->authenticate($provider);
-                $this->logger->debug('User and Token',[$user,$token]);
 
-            } catch (Exception $e) {
-                var_dump($e);
-            }
-        }
         $this->logger->debug('redirectionUri',[$redirectionUri]);
         $this->redirectToUri($redirectionUri);
     }
@@ -123,20 +119,20 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController 
             $redirectionUri = $this->uriBuilder->build();
             $this->redirectToUri($redirectionUri);
         }
-        if ($provider = $this->storage->get('provider')) {
 
-            //    try {
-            //        /** @var AuthUtility $authUtility */
-            //        $authUtility = $this->objectManager->get(\MV\SocialAuth\Utility\AuthUtility::class);
-            //        [$user, $token] = $authUtility->authenticate($provider);
-            //        $this->logger->debug('User and Token',[$user,$token]);
+            try {
+                $authUtility = $this->objectManager->get(\MV\SocialAuth\Utility\AuthUtility::class);
+                $provider = $authUtility->getStorage()->get('provider');
+                [$user, $token] = $authUtility->authenticate($provider);
+                $this->logger->debug('User and Token', [$user, $token]);
 
-            //    } catch (Exception $e) {
-            //        var_dump($e);
-            //    }
-            $this->uriBuilder->setTargetPageUid(2);
-            $redirectionUri = $this->uriBuilder->build();
-            $this->redirectToUri($redirectionUri);
-        }
+            } catch (Exception $e) {
+                var_dump($e);
+            }
+
+
+        $this->uriBuilder->setTargetPageUid(2);
+        $redirectionUri = $this->uriBuilder->build();
+        $this->redirectToUri($redirectionUri);
     }
 }

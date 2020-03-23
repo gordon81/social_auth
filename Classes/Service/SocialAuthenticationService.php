@@ -126,6 +126,8 @@ class SocialAuthenticationService extends AbstractAuthenticationService
         $this->extConfig = GeneralUtility::makeInstance(ExtensionConfiguration::class)->get('social_auth');
         $this->request = GeneralUtility::_GP('tx_socialauth_pi1');
         $this->provider = htmlspecialchars($this->request['provider']);
+        if($this->provider)
+        $provider = $GLOBALS["TSFE"]->fe_user->getKey("ses","provider");
         $this->initTSFE();
 
         return parent::init();
@@ -178,6 +180,7 @@ class SocialAuthenticationService extends AbstractAuthenticationService
         // then grab the user profile
         if ($this->provider && $this->isServiceAvailable() && $this->authUtility !== null) {
             //get user
+            $this->authUtility->getStorage()->set('provider',$this->provider);
             [$hybridUser,$token] = $this->authUtility->authenticate($this->provider);
             if ($hybridUser) {
                 $hashedPassword = md5(uniqid());

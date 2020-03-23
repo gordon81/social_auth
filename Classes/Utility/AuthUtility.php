@@ -2,6 +2,7 @@
 namespace MV\SocialAuth\Utility;
 
 use Hybridauth\Hybridauth;
+use Hybridauth\Storage\Session;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\HttpUtility;
@@ -58,12 +59,17 @@ class AuthUtility
      * $logger
      */
     protected $logger;
+    /**
+     * @var Session
+     */
+    protected $storage;
 
     /**
      * initializeObject
      */
     public function initializeObject()
     {
+
         $this->extConfig = GeneralUtility::makeInstance(ExtensionConfiguration::class)->get('social_auth');
         $this->config = array(
             'callback' => GeneralUtility::getIndpEnv('TYPO3_SITE_URL') . '?type=1316773682&logintype=login',
@@ -112,20 +118,22 @@ class AuthUtility
                     )
                 )
             ),
-            'debug_mode' => false,
-            'debug_file' => '',
+            'debug_mode' => true,
+            'debug_file' => ExtensionManagementUtility::extPath('social_auth').'debug.txt',
         );
+
 
         /* @var $logManager \TYPO3\CMS\Core\Log\LogManager */
         $logManager = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Log\LogManager::class);
         $this->logger = $logManager->getLogger(__CLASS__);
         $this->hybridAuth = new \Hybridauth\Hybridauth($this->config);
+        $this->storage = new Session();
     }
 
     /**
      * @param string $provider
      *
-     *  @return Hybridauth\User\Profile |FALSE
+     *  @return array |FALSE
      */
     public function authenticate($provider)
     {
@@ -195,4 +203,13 @@ class AuthUtility
     {
         $this->hybridAuth->disconnectAllAdapters();
     }
+
+    /**
+     * @return Session
+     */
+    public function getStorage()
+    {
+        return $this->storage;
+    }
+
 }
