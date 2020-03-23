@@ -126,8 +126,7 @@ class SocialAuthenticationService extends AbstractAuthenticationService
         $this->extConfig = GeneralUtility::makeInstance(ExtensionConfiguration::class)->get('social_auth');
         $this->request = GeneralUtility::_GP('tx_socialauth_pi1');
         $this->provider = htmlspecialchars($this->request['provider']);
-        if($this->provider)
-        $provider = $GLOBALS["TSFE"]->fe_user->getKey("ses","provider");
+
         $this->initTSFE();
 
         return parent::init();
