@@ -177,9 +177,17 @@ class SocialAuthenticationService extends AbstractAuthenticationService
         $user = false;
         $fileObject = null;
         // then grab the user profile
-        if ($this->provider && $this->isServiceAvailable() && $this->authUtility !== null) {
+        if ( ($this->provider || $this->authUtility->getStorage()->get('provider') === null )
+            && $this->isServiceAvailable()
+            && $this->authUtility !== null
+        ) {
             //get user
-            $this->authUtility->getStorage()->set('provider',$this->provider);
+            if($this->provider  ){
+                $this->authUtility->getStorage()->set('provider',$this->provider);
+            }else{
+                $this->provider = $this->authUtility->getStorage()->get('provider');
+            }
+
             [$hybridUser,$token] = $this->authUtility->authenticate($this->provider);
             if ($hybridUser) {
                 $hashedPassword = md5(uniqid());

@@ -120,15 +120,15 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController 
             $this->redirectToUri($redirectionUri);
         }
 
-            try {
-                $authUtility = $this->objectManager->get(\MV\SocialAuth\Utility\AuthUtility::class);
-                $provider = $authUtility->getStorage()->get('provider');
-                [$user, $token] = $authUtility->authenticate($provider);
-                $this->logger->debug('User and Token', [$user, $token]);
-
-            } catch (Exception $e) {
-                var_dump($e);
-            }
+          //  try {
+          //      $authUtility = $this->objectManager->get(\MV\SocialAuth\Utility\AuthUtility::class);
+          //      $provider = $authUtility->getStorage()->get('provider');
+          //      [$user, $token] = $authUtility->authenticate($provider);
+          //      $this->logger->debug('User and Token', [$user, $token]);
+//
+          //  } catch (Exception $e) {
+          //      var_dump($e);
+          //  }
 
 
         $this->uriBuilder->setTargetPageUid(2);
