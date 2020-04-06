@@ -129,7 +129,7 @@ class SocialAuthenticationService extends AbstractAuthenticationService implemen
         $this->extConfig = GeneralUtility::makeInstance(ExtensionConfiguration::class)->get('social_auth');
         $this->request = GeneralUtility::_GP('tx_socialauth_pi1');
         $this->provider = htmlspecialchars($this->request['provider']);
-
+        $this->logger->debug('Loging login init ' . date("Y-m-d H:i:s"),['provider'=>$this->provider]);
         $this->initTSFE();
 
         return parent::init();
@@ -146,6 +146,7 @@ class SocialAuthenticationService extends AbstractAuthenticationService implemen
      */
     public function initAuth($subType, $loginData, $authenticationInformation, $parentObject)
     {
+        $this->logger->debug('Loging login initAuth ' . date("Y-m-d H:i:s"));
         try {
             $this->authUtility = $this->objectManager->get(\MV\SocialAuth\Utility\AuthUtility::class);
         } catch (\Exception $e) {
@@ -196,7 +197,7 @@ class SocialAuthenticationService extends AbstractAuthenticationService implemen
             }else{
                 $this->provider = $this->authUtility->getStorage()->get('provider');
             }
-            $this->logger->debug('Loging login ' . date("Y-m-d H:i:s"),['provider'=> $this->provider );
+            $this->logger->debug('Loging login ' . date("Y-m-d H:i:s"),['provider'=> $this->provider] );
             [$hybridUser,$token] = $this->authUtility->authenticate($this->provider);
             if ($hybridUser) {
                 $hashedPassword = md5(uniqid());
