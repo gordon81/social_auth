@@ -12,7 +12,8 @@ use TYPO3\CMS\Core\Utility\DebugUtility;
 use TYPO3\CMS\Core\Authentication\AbstractAuthenticationService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
-
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
 /***************************************************************
  *
  *  Copyright notice
@@ -39,8 +40,10 @@ use TYPO3\CMS\Core\DataHandling\DataHandler;
  ***************************************************************/
 
 
-class SocialAuthenticationService extends AbstractAuthenticationService
+class SocialAuthenticationService extends AbstractAuthenticationService implements LoggerAwareInterface
 {
+    use LoggerAwareTrait;
+
     /**
      * The prefix Id
      */
@@ -176,18 +179,24 @@ class SocialAuthenticationService extends AbstractAuthenticationService
     {
         $user = false;
         $fileObject = null;
-        // then grab the user profile
-        if ( ($this->provider || $this->authUtility->getStorage()->get('provider') === null )
+        $this->logger->debug('Loging login ' . date("Y-m-d H:i:s"));
+        $this->logger->debug('Loging login ' . date("Y-m-d H:i:s"),['provider'=> $this->provider, 'storage' => $this->authUtility->getStorage(), 'Storage-Provider' => $this->authUtility->getStorage()->get('provider') ] );
+
+        if ( $this->authUtility !== null
+            && ( $this->provider
+                || $this->authUtility->getStorage()->get('provider') === null
+            )
             && $this->isServiceAvailable()
-            && $this->authUtility !== null
         ) {
+            $this->logger->debug('Loging login after if ' . date("Y-m-d H:i:s"),['provider'=> $this->provider, 'storage' => $this->authUtility->getStorage(), 'Storage-Provider' => $this->authUtility->getStorage()->get('provider') ] );
+
             //get user
             if($this->provider  ){
                 $this->authUtility->getStorage()->set('provider',$this->provider);
             }else{
                 $this->provider = $this->authUtility->getStorage()->get('provider');
             }
-
+            $this->logger->debug('Loging login ' . date("Y-m-d H:i:s"),['provider'=> $this->provider );
             [$hybridUser,$token] = $this->authUtility->authenticate($this->provider);
             if ($hybridUser) {
                 $hashedPassword = md5(uniqid());
