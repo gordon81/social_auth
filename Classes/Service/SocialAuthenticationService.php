@@ -8,7 +8,7 @@ use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Crypto\PasswordHashing\PasswordHashFactory;
 use TYPO3\CMS\Core\Crypto\PasswordHashing\InvalidPasswordHashException;
-use TYPO3\CMS\Core\Utility\DebugUtility;
+
 use TYPO3\CMS\Core\Authentication\AbstractAuthenticationService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
@@ -129,7 +129,7 @@ class SocialAuthenticationService extends AbstractAuthenticationService implemen
         $this->extConfig = GeneralUtility::makeInstance(ExtensionConfiguration::class)->get('social_auth');
         $this->request = GeneralUtility::_GP('tx_socialauth_pi1');
         $this->provider = htmlspecialchars($this->request['provider']);
-        $this->logger->debug('Loging login init ' . date("Y-m-d H:i:s"),['provider'=>$this->provider]);
+        $this->logger->error('Loging login init ' . date("Y-m-d H:i:s"),['provider'=>$this->provider]);
         $this->initTSFE();
 
         return parent::init();
@@ -146,10 +146,11 @@ class SocialAuthenticationService extends AbstractAuthenticationService implemen
      */
     public function initAuth($subType, $loginData, $authenticationInformation, $parentObject)
     {
-        $this->logger->debug('Loging login initAuth ' . date("Y-m-d H:i:s"));
+        $this->logger->error('Loging login initAuth ' . date("Y-m-d H:i:s"));
         try {
             $this->authUtility = $this->objectManager->get(\MV\SocialAuth\Utility\AuthUtility::class);
         } catch (\Exception $e) {
+            $this->logger->error('AuthUtility Exception',['error'=> $e]);
         }
         parent::initAuth($subType, $loginData, $authenticationInformation, $parentObject);
     }
@@ -180,16 +181,13 @@ class SocialAuthenticationService extends AbstractAuthenticationService implemen
     {
         $user = false;
         $fileObject = null;
-        $this->logger->debug('Loging login ' . date("Y-m-d H:i:s"));
-        $this->logger->debug('Loging login ' . date("Y-m-d H:i:s"),['provider'=> $this->provider, 'storage' => $this->authUtility->getStorage(), 'Storage-Provider' => $this->authUtility->getStorage()->get('provider') ] );
 
         if ( $this->authUtility !== null
             && ( $this->provider
-                || $this->authUtility->getStorage()->get('provider') === null
+                || $this->authUtility->getStorage()->get('provider') !== null
             )
-            && $this->isServiceAvailable()
+
         ) {
-            $this->logger->debug('Loging login after if ' . date("Y-m-d H:i:s"),['provider'=> $this->provider, 'storage' => $this->authUtility->getStorage(), 'Storage-Provider' => $this->authUtility->getStorage()->get('provider') ] );
 
             //get user
             if($this->provider  ){
@@ -197,93 +195,97 @@ class SocialAuthenticationService extends AbstractAuthenticationService implemen
             }else{
                 $this->provider = $this->authUtility->getStorage()->get('provider');
             }
-            $this->logger->debug('Loging login ' . date("Y-m-d H:i:s"),['provider'=> $this->provider] );
-            [$hybridUser,$token] = $this->authUtility->authenticate($this->provider);
-            if ($hybridUser) {
-                $hashedPassword = md5(uniqid());
-                try {
-                    $hashInstance = GeneralUtility::makeInstance(PasswordHashFactory::class)->getDefaultHashInstance('FE');
-                    $hashedPassword = $hashInstance->getHashedPassword(uniqid());
-                } catch(InvalidPasswordHashException $e) {}
-                //create username
-                $email = !empty($hybridUser->email) ? $hybridUser->email : $hybridUser->emailVerified;
-                $username = !empty($email) ? $email : $this->cleanData($hybridUser->displayName, true);
-                $fields = [
-                    'pid' => (int) $this->extConfig['users']['storagePid'],
-                    'lastlogin' => time(),
-                    'crdate' => time(),
-                    'tstamp' => time(),
-                    'username' => $username,
-                    'name' => $this->cleanData($hybridUser->displayName),
-                    'first_name' => $this->cleanData($hybridUser->firstName),
-                    'last_name' => $this->cleanData($hybridUser->lastName),
-                    'password' => $hashedPassword,
-                    'email' => $this->cleanData($hybridUser->email),
-                    'telephone' => $this->cleanData($hybridUser->phone),
-                    'address' => $this->cleanData($hybridUser->address),
-                    'city' => $this->cleanData($hybridUser->city),
-                    'zip' => $this->cleanData($hybridUser->zip),
-                    'country' => $this->cleanData($hybridUser->country),
-                    'tx_socialauth_identifier' => $this->cleanData($hybridUser->identifier),
-                    'tx_socialauth_source' => $this->arrayProvider[$this->provider]
-                ];
-                //remove null values but keep 0
-                $fields = array_filter($fields, 'strlen');
-                //grab image
-                if (!empty($hybridUser->photoURL)) {
-                    $uniqueName = strtolower($this->provider . '_' . $hybridUser->identifier) . '.jpg';
-                    $fileContent = GeneralUtility::getUrl($hybridUser->photoURL);
-                    if ($fileContent) {
-                        $storagePid = $this->extConfig['users']['fileStoragePid'] ? (int) $this->extConfig['users']['fileStoragePid'] : 1; #this default UID is the “fileadmin/“ storage, autocreated by default
-                        $storagePath = $this->extConfig['users']['filePath'] ? $this->extConfig['users']['filePath'] : 'user_upload';
-                        /* @var $storage \TYPO3\CMS\Core\Resource\ResourceStorage */
-                        $storageRepository = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Resource\StorageRepository::class);
-                        $storage = $storageRepository->findByUid($storagePid);
-                        if ($storage->hasFolder($storagePath)) {
-                            /* @var $fileObject \TYPO3\CMS\Core\Resource\AbstractFile */
-                            $fileObject = $storage->createFile($uniqueName, $storage->getFolder($storagePath));
-                            $storage->setFileContents($fileObject, $fileContent);
-                            $fields['image'] = $fileObject->getUid();
+            if($this->isServiceAvailable()){
+
+                [$hybridUser,$token] = $this->authUtility->authenticate($this->provider);
+                if ($hybridUser) {
+                    $hashedPassword = md5(uniqid());
+                    try {
+                        $hashInstance = GeneralUtility::makeInstance(PasswordHashFactory::class)->getDefaultHashInstance('FE');
+                        $hashedPassword = $hashInstance->getHashedPassword(uniqid());
+                    } catch(InvalidPasswordHashException $e) {
+                        $this->logger->error('PasswordHashError',['error'=> $e]);
+                    }
+                    //create username
+                    $email = !empty($hybridUser->email) ? $hybridUser->email : $hybridUser->emailVerified;
+                    $username = !empty($email) ? $email : $this->cleanData($hybridUser->displayName, true);
+                    $fields = [
+                        'pid' => (int) $this->extConfig['users']['storagePid'],
+                        'lastlogin' => time(),
+                        'crdate' => time(),
+                        'tstamp' => time(),
+                        'username' => $username,
+                        'name' => $this->cleanData($hybridUser->displayName),
+                        'first_name' => $this->cleanData($hybridUser->firstName),
+                        'last_name' => $this->cleanData($hybridUser->lastName),
+                        'password' => $hashedPassword,
+                        'email' => $this->cleanData($hybridUser->email),
+                        'telephone' => $this->cleanData($hybridUser->phone),
+                        'address' => $this->cleanData($hybridUser->address),
+                        'city' => $this->cleanData($hybridUser->city),
+                        'zip' => $this->cleanData($hybridUser->zip),
+                        'country' => $this->cleanData($hybridUser->country),
+                        'tx_socialauth_identifier' => $this->cleanData($hybridUser->identifier),
+                        'tx_socialauth_source' => $this->arrayProvider[$this->provider]
+                    ];
+                    //remove null values but keep 0
+                    $fields = array_filter($fields, 'strlen');
+                    //grab image
+                    if (!empty($hybridUser->photoURL)) {
+                        $uniqueName = strtolower($this->provider . '_' . $hybridUser->identifier) . '.jpg';
+                        $fileContent = GeneralUtility::getUrl($hybridUser->photoURL);
+                        if ($fileContent) {
+                            $storagePid = $this->extConfig['users']['fileStoragePid'] ? (int) $this->extConfig['users']['fileStoragePid'] : 1; #this default UID is the “fileadmin/“ storage, autocreated by default
+                            $storagePath = $this->extConfig['users']['filePath'] ? $this->extConfig['users']['filePath'] : 'user_upload';
+                            /* @var $storage \TYPO3\CMS\Core\Resource\ResourceStorage */
+                            $storageRepository = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Resource\StorageRepository::class);
+                            $storage = $storageRepository->findByUid($storagePid);
+                            if ($storage->hasFolder($storagePath)) {
+                                /* @var $fileObject \TYPO3\CMS\Core\Resource\AbstractFile */
+                                $fileObject = $storage->createFile($uniqueName, $storage->getFolder($storagePath));
+                                $storage->setFileContents($fileObject, $fileContent);
+                                $fields['image'] = $fileObject->getUid();
+                            }
                         }
                     }
-                }
-                //signal slot to add other fields
-                $this->signalSlotDispatcher->dispatch(__CLASS__, 'beforeCreateOrUpdateUser', [$hybridUser, &$fields, $this]);
-                //if the user exists in the TYPO3 database
-                $exist = $this->userExist($hybridUser->identifier);
-                $connection = GeneralUtility::makeInstance(ConnectionPool::class)
-                    ->getConnectionForTable('fe_users');
-                if ($exist) {
-                    //Update only necessary fields
-                    if (isset($this->extConfig['users']['fieldsExcluded']) && !empty($this->extConfig['users']['fieldsExcluded'])) {
-                        $fieldsExcluded = GeneralUtility::trimExplode(',', $this->extConfig['users']['fieldsExcluded']);
-                        $fields = array_diff_key($fields, array_flip($fieldsExcluded));
+                    //signal slot to add other fields
+                    $this->signalSlotDispatcher->dispatch(__CLASS__, 'beforeCreateOrUpdateUser', [$hybridUser, &$fields, $this]);
+                    //if the user exists in the TYPO3 database
+                    $exist = $this->userExist($hybridUser->identifier);
+                    $connection = GeneralUtility::makeInstance(ConnectionPool::class)
+                        ->getConnectionForTable('fe_users');
+                    if ($exist) {
+                        //Update only necessary fields
+                        if (isset($this->extConfig['users']['fieldsExcluded']) && !empty($this->extConfig['users']['fieldsExcluded'])) {
+                            $fieldsExcluded = GeneralUtility::trimExplode(',', $this->extConfig['users']['fieldsExcluded']);
+                            $fields = array_diff_key($fields, array_flip($fieldsExcluded));
+                        }
+                        $new = false;
+                        $connection->update('fe_users', $fields, ['uid' => (int)$exist['uid']]);
+                        $userUid = $exist['uid'];
+                    } else {
+                        //get default user group
+                        $fields['usergroup'] = (int) $this->extConfig['users']['defaultGroup'];
+                        $new = true;
+                        $connection->insert('fe_users', $fields);
+                        $userUid = $connection->lastInsertId('fe_users');
                     }
-                    $new = false;
-                    $connection->update('fe_users', $fields, ['uid' => (int)$exist['uid']]);
-                    $userUid = $exist['uid'];
-                } else {
-                    //get default user group
-                    $fields['usergroup'] = (int) $this->extConfig['users']['defaultGroup'];
-                    $new = true;
-                    $connection->insert('fe_users', $fields);
-                    $userUid = $connection->lastInsertId('fe_users');
+                    $uniqueUsername = $this->getUnique($username, $userUid);
+                    if ($uniqueUsername != $username) {
+                        $connection->update('fe_users', ['username' => $uniqueUsername], ['uid' => (int)$userUid]);
+                    }
+                    $user = $this->getUserInfos($userUid);
+                    //create fileReference if needed
+                    if (true === $new || (false === $new && $user['image'] == 0) && null !== $fileObject) {
+                        $this->createFileReferenceFromFalFileObject($fileObject, $userUid);
+                    }
+                    $user['new'] = $new;
+                    $user['fromHybrid'] = true;
+                    if (isset($user['username'])) {
+                        $this->login['uname'] = $user['username'];
+                    }
+                    $this->signalSlotDispatcher->dispatch(__CLASS__, 'getUser', [$hybridUser, &$user, $this]);
                 }
-                $uniqueUsername = $this->getUnique($username, $userUid);
-                if ($uniqueUsername != $username) {
-                    $connection->update('fe_users', ['username' => $uniqueUsername], ['uid' => (int)$userUid]);
-                }
-                $user = $this->getUserInfos($userUid);
-                //create fileReference if needed
-                if (true === $new || (false === $new && $user['image'] == 0) && null !== $fileObject) {
-                    $this->createFileReferenceFromFalFileObject($fileObject, $userUid);
-                }
-                $user['new'] = $new;
-                $user['fromHybrid'] = true;
-                if (isset($user['username'])) {
-                    $this->login['uname'] = $user['username'];
-                }
-                $this->signalSlotDispatcher->dispatch(__CLASS__, 'getUser', [$hybridUser, &$user, $this]);
             }
         }
 
