@@ -176,6 +176,9 @@ class AuthUtility
                 \TYPO3\CMS\Core\Log\LogLevel::ERROR,
                 $error
             );
+
+            $this->logout();
+
             HttpUtility::redirect(GeneralUtility::getIndpEnv('TYPO3_SITE_URL') . '?tx_socialauth_pi1[error]='.$exception->getCode());
         }
         if (null !== $socialUser && null !== $accessToken) {
