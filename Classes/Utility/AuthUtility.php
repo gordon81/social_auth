@@ -1,6 +1,8 @@
 <?php
 namespace MV\SocialAuth\Utility;
 
+use Hybridauth\Hybridauth;
+use Hybridauth\Storage\Session;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\HttpUtility;
@@ -49,7 +51,7 @@ class AuthUtility
     protected $extConfig = [];
 
     /**
-     * \Hybrid_Auth $hybridAuth
+     * @var Hybridauth $hybridAuth
      */
     protected $hybridAuth;
 
@@ -57,15 +59,20 @@ class AuthUtility
      * $logger
      */
     protected $logger;
+    /**
+     * @var Session
+     */
+    protected $storage;
 
     /**
      * initializeObject
      */
     public function initializeObject()
     {
+
         $this->extConfig = GeneralUtility::makeInstance(ExtensionConfiguration::class)->get('social_auth');
         $this->config = array(
-            'base_url' => GeneralUtility::getIndpEnv('TYPO3_SITE_URL') . '?type=1316773682',
+            'callback' => GeneralUtility::getIndpEnv('TYPO3_SITE_URL') . '?type=1316773682&logintype=login',
             'providers' => array(
                 'Facebook' => array(
                     'enabled' =>  $this->extConfig['providers']['facebook']['enabled'],
@@ -111,28 +118,32 @@ class AuthUtility
                     )
                 )
             ),
-            'debug_mode' => false,
-            'debug_file' => '',
+            'debug_mode' => true,
+            'debug_file' => ExtensionManagementUtility::extPath('social_auth').'debug.txt',
         );
+
 
         /* @var $logManager \TYPO3\CMS\Core\Log\LogManager */
         $logManager = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Log\LogManager::class);
         $this->logger = $logManager->getLogger(__CLASS__);
-        $this->hybridAuth = new \Hybrid_Auth($this->config);
+        $this->hybridAuth = new \Hybridauth\Hybridauth($this->config);
+        $this->storage = new Session();
     }
 
     /**
      * @param string $provider
      *
-     *  @return \Hybrid_User_Profile|FALSE
+     *  @return array |FALSE
      */
     public function authenticate($provider)
     {
         $socialUser = null;
         try {
             $service = $this->hybridAuth->authenticate($provider);
+            $accessToken = $service->getAccessToken();
             $socialUser = $service->getUserProfile();
         } catch (\Exception $exception) {
+            $this->logger->debug('Exception',[$exception->getCode(),$exception->getMessage(),$exception->getTrace()]);
             switch ($exception->getCode()) {
                 case 0:
                     $error = 'Unspecified error.';
@@ -165,12 +176,15 @@ class AuthUtility
                 \TYPO3\CMS\Core\Log\LogLevel::ERROR,
                 $error
             );
+
+            $this->logout();
+
             HttpUtility::redirect(GeneralUtility::getIndpEnv('TYPO3_SITE_URL') . '?tx_socialauth_pi1[error]='.$exception->getCode());
         }
-        if (null !== $socialUser) {
-            return $socialUser;
+        if (null !== $socialUser && null !== $accessToken) {
+            return [$socialUser , $accessToken];
         } else {
-            return false;
+            return [false,false];
         }
     }
 
@@ -190,6 +204,15 @@ class AuthUtility
      */
     public function logout()
     {
-        $this->hybridAuth->logoutAllProviders();
+        $this->hybridAuth->disconnectAllAdapters();
     }
+
+    /**
+     * @return Session
+     */
+    public function getStorage()
+    {
+        return $this->storage;
+    }
+
 }

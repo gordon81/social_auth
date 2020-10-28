@@ -42,6 +42,7 @@ class LogOffHook
      */
     public function postProcessing($params, $pObj)
     {
+
         if ($pObj->loginType !== 'FE') {
             return;
         }

@@ -1,9 +1,14 @@
 <?php
 namespace MV\SocialAuth\Controller;
 
+use Hybridauth\Exception\Exception;
+use Hybridauth\Storage\Session;
+use MV\SocialAuth\Utility\AuthUtility;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-
+use TYPO3\CMS\Core\Context\Context;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
 /***************************************************************
  *
  *  Copyright notice
@@ -32,9 +37,13 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 /**
  * AuthController
  */
-class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
+class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController implements LoggerAwareInterface
 {
     protected $extConfig = array();
+
+    private $context;
+
+    use LoggerAwareTrait;
 
     /**
      * Initialize action
@@ -43,10 +52,13 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
      */
     public function initializeAction()
     {
+
         $this->extConfig = GeneralUtility::makeInstance(ExtensionConfiguration::class)->get('social_auth');
+        $this->context = GeneralUtility::makeInstance(Context::class);
         if (!$this->extConfig['users']['storagePid'] || !$this->extConfig['users']['defaultGroup']) {
             throw new \Exception('You must provide a pid for storage user and a default usergroup on Extension manager', 1473863197);
         }
+
     }
 
     /**
@@ -63,13 +75,10 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
         }
         $this->view->assign('providers', $providers);
     }
-
     /**
      * Connect action
      * @return void
-     * @throws \TYPO3\CMS\Extbase\Mvc\Exception\NoSuchArgumentException
-     * @throws \TYPO3\CMS\Extbase\Mvc\Exception\StopActionException
-     * @throws \TYPO3\CMS\Extbase\Mvc\Exception\UnsupportedRequestTypeException
+     * @throws \Exception
      */
     public function connectAction()
     {
@@ -77,8 +86,12 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
             throw new \Exception('Provider is required', 1325691094);
         }
         $redirectionUri = null;
+        $provider = $this->request->getArgument('provider');
+        $GLOBALS['TSFE']->fe_user->setKey("ses","provider",$provider);
         //redirect if login
-        if ($GLOBALS['TSFE']->loginUser && is_array($GLOBALS['TSFE']->fe_user->user)) {
+        if (
+        $this->context->getPropertyFromAspect('frontend.user', 'isLoggedIn')
+        ){
             $redirectionUri = $this->request->getArgument('redirect');
             //sanitize url with logintype=logout
             $redirectionUri = preg_replace('/(&?logintype=logout)/i', '', $redirectionUri);
@@ -87,6 +100,8 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
             $this->uriBuilder->setTargetPageUid((int) $GLOBALS['TSFE']->id);
             $redirectionUri = $this->uriBuilder->build();
         }
+
+        $this->logger->debug('redirectionUri',[$redirectionUri]);
         $this->redirectToUri($redirectionUri);
     }
 
@@ -105,12 +120,19 @@ class AuthController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
             $this->redirectToUri($redirectionUri);
         }
 
-        if (isset($_REQUEST['hauth_start']) || isset($_REQUEST['hauth_done'])) {
-            try {
-                \Hybrid_Endpoint::process();
-            } catch (\Hybrid_Exception $e) {
-                $this->throwStatus(403);
-            }
-        }
+          //  try {
+          //      $authUtility = $this->objectManager->get(\MV\SocialAuth\Utility\AuthUtility::class);
+          //      $provider = $authUtility->getStorage()->get('provider');
+          //      [$user, $token] = $authUtility->authenticate($provider);
+          //      $this->logger->debug('User and Token', [$user, $token]);
+//
+          //  } catch (Exception $e) {
+          //      var_dump($e);
+          //  }
+
+
+        $this->uriBuilder->setTargetPageUid(2);
+        $redirectionUri = $this->uriBuilder->build();
+        $this->redirectToUri($redirectionUri);
     }
 }
